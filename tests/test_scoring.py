@@ -51,3 +51,21 @@ def test_disposable_risky():
         smtp_inconclusive=False,
     )
     assert result.classification == "risky"
+
+
+def test_inconclusive_smtp_is_risky():
+    result = classify_result(
+        email="user@example.com",
+        normalized="user@example.com",
+        syntax_valid=True,
+        domain_exists=True,
+        mx_found=True,
+        smtp_reachable=False,
+        catch_all=None,
+        smtp_attempts=[],
+        role_account=False,
+        disposable_domain=False,
+        smtp_inconclusive=True,
+    )
+    assert result.classification == "risky"
+    assert result.cli_label == "sketchy"

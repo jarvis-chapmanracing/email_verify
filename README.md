@@ -57,27 +57,31 @@ email_verify --file sample_data/emails.csv --csv output.csv
 SMTP strategy
 
 ```bash
+email_verify --smtp-strategy cloud_safe_non25 test@example.com
 email_verify --smtp-strategy strict test@example.com
 email_verify --smtp-strategy cloud_safe test@example.com
 email_verify --smtp-strategy dns_only test@example.com
 ```
 
-SMTP ports
+SMTP ports and timeout
 
 ```bash
-email_verify --smtp-strategy cloud_safe --smtp-ports 25,587,465 test@example.com
+email_verify --smtp-strategy cloud_safe_non25 --smtp-ports 587,465 --smtp-timeout-seconds 3 test@example.com
+email_verify --smtp-strategy cloud_safe --smtp-ports 25,587,465 --smtp-timeout-seconds 3 test@example.com
+email_verify --smtp-strategy cloud_safe --no-port-25 test@example.com
 ```
 
 Config file example
 
 ```json
 {
-  "smtp_strategy": "cloud_safe",
-  "smtp_ports": [25, 587, 465],
+  "smtp_strategy": "cloud_safe_non25",
+  "smtp_ports": [587, 465],
   "dns_timeout": 4,
-  "dns_retries": 1,
-  "smtp_timeout": 5,
-  "smtp_retries": 1,
+  "dns_retries": 0,
+  "smtp_timeout_seconds": 3,
+  "smtp_retries": 0,
+  "no_port_25": true,
   "log_level": "INFO"
 }
 ```
@@ -108,6 +112,8 @@ Config file example
 ## Safety and limitations
 
 - No SMTP data is sent and no message content is transmitted
+- Google Cloud commonly blocks outbound port 25 to external IPs by default
+- Ports 465 and 587 are typically usable for outbound reachability checks
 - Port 25 MX checks can help indicate acceptance but do not guarantee delivery
 - Submission ports 587 and 465 do not prove mailbox existence
 - Some servers accept RCPT for any address and still bounce later
