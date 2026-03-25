@@ -1,0 +1,6 @@
+# Small starter list. Extend with larger sources as needed.
+mailinator.com
+10minutemail.com
+tempmail.com
+guerrillamail.com
+trashmail.com
