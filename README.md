@@ -54,6 +54,34 @@ CSV output
 email_verify --file sample_data/emails.csv --csv output.csv
 ```
 
+SMTP strategy
+
+```bash
+email_verify --smtp-strategy strict test@example.com
+email_verify --smtp-strategy cloud_safe test@example.com
+email_verify --smtp-strategy dns_only test@example.com
+```
+
+SMTP ports
+
+```bash
+email_verify --smtp-strategy cloud_safe --smtp-ports 25,587,465 test@example.com
+```
+
+Config file example
+
+```json
+{
+  "smtp_strategy": "cloud_safe",
+  "smtp_ports": [25, 587, 465],
+  "dns_timeout": 4,
+  "dns_retries": 1,
+  "smtp_timeout": 5,
+  "smtp_retries": 1,
+  "log_level": "INFO"
+}
+```
+
 ## Output fields
 
 - email
@@ -63,6 +91,7 @@ email_verify --file sample_data/emails.csv --csv output.csv
 - mx_found
 - smtp_reachable
 - catch_all
+- smtp_attempts
 - role_account
 - disposable_domain
 - risk_score
@@ -79,7 +108,9 @@ email_verify --file sample_data/emails.csv --csv output.csv
 ## Safety and limitations
 
 - No SMTP data is sent and no message content is transmitted
-- Some SMTP servers accept RCPT for any address and still bounce later
+- Port 25 MX checks can help indicate acceptance but do not guarantee delivery
+- Submission ports 587 and 465 do not prove mailbox existence
+- Some servers accept RCPT for any address and still bounce later
 - Some servers block probes or rate limit connections
 - Catch all detection is best effort only
 - This tool cannot guarantee an email will not bounce

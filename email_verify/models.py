@@ -13,6 +13,7 @@ class EmailCheckResult:
     mx_found: bool
     smtp_reachable: bool
     catch_all: Optional[bool]
+    smtp_attempts: list[dict]
     role_account: bool
     disposable_domain: bool
     risk_score: int
@@ -29,6 +30,7 @@ class EmailCheckResult:
             "mx_found": self.mx_found,
             "smtp_reachable": self.smtp_reachable,
             "catch_all": self.catch_all,
+            "smtp_attempts": self.smtp_attempts,
             "role_account": self.role_account,
             "disposable_domain": self.disposable_domain,
             "risk_score": self.risk_score,

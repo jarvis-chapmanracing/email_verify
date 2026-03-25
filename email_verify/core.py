@@ -35,11 +35,35 @@ def _get_float_env(name: str, default: float) -> float:
         return default
 
 
-def verify_email(email: str) -> EmailCheckResult:
-    dns_timeout = _get_float_env("EMAIL_VERIFY_DNS_TIMEOUT", 5.0)
-    smtp_timeout = _get_float_env("EMAIL_VERIFY_SMTP_TIMEOUT", 6.0)
-    smtp_retries = _get_int_env("EMAIL_VERIFY_SMTP_RETRIES", 2)
-    dns_retries = _get_int_env("EMAIL_VERIFY_DNS_RETRIES", 1)
+def _get_str_env(name: str, default: str) -> str:
+    value = os.getenv(name)
+    if not value:
+        return default
+    return value
+
+
+def verify_email(
+    email: str,
+    smtp_strategy: str = "strict",
+    smtp_ports: list[int] | None = None,
+    dns_timeout: float | None = None,
+    dns_retries: int | None = None,
+    smtp_timeout: float | None = None,
+    smtp_retries: int | None = None,
+) -> EmailCheckResult:
+    dns_timeout = dns_timeout or _get_float_env("EMAIL_VERIFY_DNS_TIMEOUT", 5.0)
+    smtp_timeout = smtp_timeout or _get_float_env("EMAIL_VERIFY_SMTP_TIMEOUT", 6.0)
+    smtp_retries = smtp_retries if smtp_retries is not None else _get_int_env("EMAIL_VERIFY_SMTP_RETRIES", 2)
+    dns_retries = dns_retries if dns_retries is not None else _get_int_env("EMAIL_VERIFY_DNS_RETRIES", 1)
+    smtp_strategy = smtp_strategy or _get_str_env("EMAIL_VERIFY_SMTP_STRATEGY", "strict")
+
+    if smtp_ports is None:
+        if smtp_strategy == "cloud_safe":
+            smtp_ports = [25, 587, 465]
+        elif smtp_strategy == "dns_only":
+            smtp_ports = []
+        else:
+            smtp_ports = [25]
 
     syntax_valid, normalized, domain = validate_syntax(email)
     local_part = ""
@@ -59,8 +83,10 @@ def verify_email(email: str) -> EmailCheckResult:
             mx_found=False,
             smtp_reachable=False,
             catch_all=None,
+            smtp_attempts=[],
             role_account=role_account,
             disposable_domain=disposable_domain,
+            smtp_inconclusive=False,
         )
 
     domain_ok = domain_exists(domain, dns_timeout, dns_retries)
@@ -70,13 +96,29 @@ def verify_email(email: str) -> EmailCheckResult:
 
     smtp_reachable = False
     catch_all: Optional[bool] = None
-    if mx_found:
-        smtp_reachable, catch_all = probe_smtp(
+    smtp_attempts: list[dict] = []
+    smtp_inconclusive = False
+
+    if mx_found and smtp_ports:
+        smtp_reachable, catch_all, smtp_attempts = probe_smtp(
             mx_hosts,
             domain,
             timeout=smtp_timeout,
             retries=smtp_retries,
+            ports=smtp_ports,
         )
+        port25_success = any(
+            attempt.get("port") == 25 and attempt.get("status") == "ok" for attempt in smtp_attempts
+        )
+        submission_success = any(
+            attempt.get("port") in (587, 465) and attempt.get("status") == "ok" for attempt in smtp_attempts
+        )
+        if not port25_success:
+            smtp_inconclusive = True
+        if submission_success and not port25_success:
+            smtp_inconclusive = True
+    elif mx_found and not smtp_ports:
+        smtp_inconclusive = True
 
     return classify_result(
         email=email,
@@ -86,6 +128,8 @@ def verify_email(email: str) -> EmailCheckResult:
         mx_found=mx_found,
         smtp_reachable=smtp_reachable,
         catch_all=catch_all,
+        smtp_attempts=smtp_attempts,
         role_account=role_account,
         disposable_domain=disposable_domain,
+        smtp_inconclusive=smtp_inconclusive,
     )

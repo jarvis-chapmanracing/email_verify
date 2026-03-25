@@ -13,8 +13,10 @@ def classify_result(
     mx_found: bool,
     smtp_reachable: bool,
     catch_all: Optional[bool],
+    smtp_attempts: list[dict],
     role_account: bool,
     disposable_domain: bool,
+    smtp_inconclusive: bool,
 ) -> EmailCheckResult:
     notes: list[str] = []
 
@@ -28,6 +30,7 @@ def classify_result(
             mx_found=False,
             smtp_reachable=False,
             catch_all=None,
+            smtp_attempts=smtp_attempts,
             role_account=False,
             disposable_domain=False,
             risk_score=100,
@@ -46,6 +49,7 @@ def classify_result(
             mx_found=False,
             smtp_reachable=False,
             catch_all=None,
+            smtp_attempts=smtp_attempts,
             role_account=role_account,
             disposable_domain=disposable_domain,
             risk_score=100,
@@ -64,6 +68,7 @@ def classify_result(
             mx_found=False,
             smtp_reachable=False,
             catch_all=None,
+            smtp_attempts=smtp_attempts,
             role_account=role_account,
             disposable_domain=disposable_domain,
             risk_score=90,
@@ -74,9 +79,25 @@ def classify_result(
 
     risk_score = 0
 
-    if not smtp_reachable:
+    if smtp_inconclusive:
+        risk_score += 20
+        notes.append("SMTP verification inconclusive")
+    elif not smtp_reachable:
         risk_score += 25
         notes.append("SMTP server not reachable")
+
+    if smtp_attempts:
+        port25_attempted = any(attempt.get("port") == 25 for attempt in smtp_attempts)
+        port25_success = any(
+            attempt.get("port") == 25 and attempt.get("status") == "ok" for attempt in smtp_attempts
+        )
+        submission_success = any(
+            attempt.get("port") in (587, 465) and attempt.get("status") == "ok" for attempt in smtp_attempts
+        )
+        if port25_attempted and not port25_success:
+            notes.append("MX port 25 unreachable")
+        if submission_success and not port25_success:
+            notes.append("Submission ports reachable, mailbox validity unconfirmed")
 
     if catch_all is True:
         risk_score += 15
@@ -95,6 +116,8 @@ def classify_result(
 
     if disposable_domain:
         classification = "risky"
+    elif smtp_inconclusive:
+        classification = "risky"
     elif risk_score >= 40:
         classification = "risky"
     else:
@@ -110,6 +133,7 @@ def classify_result(
         mx_found=True,
         smtp_reachable=smtp_reachable,
         catch_all=catch_all,
+        smtp_attempts=smtp_attempts,
         role_account=role_account,
         disposable_domain=disposable_domain,
         risk_score=risk_score,
