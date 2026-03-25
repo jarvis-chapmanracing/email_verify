@@ -14,6 +14,9 @@ def classify_result(
     smtp_reachable: bool,
     catch_all: Optional[bool],
     smtp_attempts: list[dict],
+    smtp_timeout_seconds: float,
+    smtp_total_timeout_seconds: float,
+    smtp_timed_out: bool,
     role_account: bool,
     disposable_domain: bool,
     smtp_inconclusive: bool,
@@ -31,6 +34,9 @@ def classify_result(
             smtp_reachable=False,
             catch_all=None,
             smtp_attempts=smtp_attempts,
+            smtp_timeout_seconds=smtp_timeout_seconds,
+            smtp_total_timeout_seconds=smtp_total_timeout_seconds,
+            smtp_timed_out=smtp_timed_out,
             role_account=False,
             disposable_domain=False,
             risk_score=100,
@@ -50,6 +56,9 @@ def classify_result(
             smtp_reachable=False,
             catch_all=None,
             smtp_attempts=smtp_attempts,
+            smtp_timeout_seconds=smtp_timeout_seconds,
+            smtp_total_timeout_seconds=smtp_total_timeout_seconds,
+            smtp_timed_out=smtp_timed_out,
             role_account=role_account,
             disposable_domain=disposable_domain,
             risk_score=100,
@@ -69,6 +78,9 @@ def classify_result(
             smtp_reachable=False,
             catch_all=None,
             smtp_attempts=smtp_attempts,
+            smtp_timeout_seconds=smtp_timeout_seconds,
+            smtp_total_timeout_seconds=smtp_total_timeout_seconds,
+            smtp_timed_out=smtp_timed_out,
             role_account=role_account,
             disposable_domain=disposable_domain,
             risk_score=90,
@@ -81,7 +93,11 @@ def classify_result(
 
     if smtp_inconclusive:
         risk_score += 20
-        notes.append("SMTP verification inconclusive")
+        notes.append(
+            "Syntax, domain, and MX checks passed. SMTP probing did not confirm reachability within timeout. Submission ports do not guarantee mailbox validity."
+        )
+        if smtp_timed_out:
+            notes.append("SMTP probing hit total timeout")
     elif not smtp_reachable:
         risk_score += 25
         notes.append("SMTP server not reachable")
@@ -114,7 +130,9 @@ def classify_result(
         risk_score += 35
         notes.append("Disposable email domain")
 
-    if disposable_domain:
+    if not smtp_reachable:
+        classification = "risky"
+    elif disposable_domain:
         classification = "risky"
     elif smtp_inconclusive:
         classification = "risky"
@@ -134,6 +152,9 @@ def classify_result(
         smtp_reachable=smtp_reachable,
         catch_all=catch_all,
         smtp_attempts=smtp_attempts,
+        smtp_timeout_seconds=smtp_timeout_seconds,
+        smtp_total_timeout_seconds=smtp_total_timeout_seconds,
+        smtp_timed_out=smtp_timed_out,
         role_account=role_account,
         disposable_domain=disposable_domain,
         risk_score=risk_score,
