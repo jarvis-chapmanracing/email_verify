@@ -10,8 +10,10 @@ def test_invalid_without_mx():
         mx_found=False,
         smtp_reachable=False,
         catch_all=None,
+        smtp_attempts=[],
         role_account=False,
         disposable_domain=False,
+        smtp_inconclusive=False,
     )
     assert result.classification == "invalid"
     assert result.cli_label == "not_verified"
@@ -26,8 +28,10 @@ def test_risky_role_account():
         mx_found=True,
         smtp_reachable=True,
         catch_all=None,
+        smtp_attempts=[],
         role_account=True,
         disposable_domain=False,
+        smtp_inconclusive=False,
     )
     assert result.classification in {"risky", "safe_to_send"}
 
@@ -41,7 +45,9 @@ def test_disposable_risky():
         mx_found=True,
         smtp_reachable=True,
         catch_all=False,
+        smtp_attempts=[],
         role_account=False,
         disposable_domain=True,
+        smtp_inconclusive=False,
     )
     assert result.classification == "risky"
