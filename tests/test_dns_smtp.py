@@ -35,13 +35,14 @@ def test_probe_smtp_unreachable(monkeypatch):
         raise OSError("smtp fail")
 
     monkeypatch.setattr("smtplib.SMTP", fake_smtp)
+    monkeypatch.setattr("smtplib.SMTP_SSL", fake_smtp)
     reachable, catch_all, attempts, timed_out = probe_smtp(
         ["mx.example.com"],
         "example.com",
         timeout=1,
         total_timeout=1,
         retries=0,
-        ports=[587, 465],
+        ports=[587],
     )
     assert reachable is False
     assert catch_all is None

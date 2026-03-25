@@ -48,7 +48,7 @@ def test_cloud_safe_strategy_uses_submission_ports(monkeypatch):
     monkeypatch.setattr("email_verify.core.probe_smtp", fake_probe)
 
     verify_email("user@example.com", smtp_strategy="cloud_safe")
-    assert captured["ports"] == [25, 587, 465]
+    assert captured["ports"] == [587, 465]
 
 
 def test_cloud_safe_non25_strategy(monkeypatch):
