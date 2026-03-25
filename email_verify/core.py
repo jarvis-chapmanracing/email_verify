@@ -44,26 +44,32 @@ def _get_str_env(name: str, default: str) -> str:
 
 def verify_email(
     email: str,
-    smtp_strategy: str = "strict",
+    smtp_strategy: str = "cloud_safe_non25",
     smtp_ports: list[int] | None = None,
     dns_timeout: float | None = None,
     dns_retries: int | None = None,
     smtp_timeout: float | None = None,
     smtp_retries: int | None = None,
+    no_port_25: bool = False,
 ) -> EmailCheckResult:
-    dns_timeout = dns_timeout or _get_float_env("EMAIL_VERIFY_DNS_TIMEOUT", 5.0)
-    smtp_timeout = smtp_timeout or _get_float_env("EMAIL_VERIFY_SMTP_TIMEOUT", 6.0)
-    smtp_retries = smtp_retries if smtp_retries is not None else _get_int_env("EMAIL_VERIFY_SMTP_RETRIES", 2)
-    dns_retries = dns_retries if dns_retries is not None else _get_int_env("EMAIL_VERIFY_DNS_RETRIES", 1)
-    smtp_strategy = smtp_strategy or _get_str_env("EMAIL_VERIFY_SMTP_STRATEGY", "strict")
+    dns_timeout = dns_timeout or _get_float_env("EMAIL_VERIFY_DNS_TIMEOUT", 4.0)
+    smtp_timeout = smtp_timeout or _get_float_env("EMAIL_VERIFY_SMTP_TIMEOUT", 3.0)
+    smtp_retries = smtp_retries if smtp_retries is not None else _get_int_env("EMAIL_VERIFY_SMTP_RETRIES", 0)
+    dns_retries = dns_retries if dns_retries is not None else _get_int_env("EMAIL_VERIFY_DNS_RETRIES", 0)
+    smtp_strategy = smtp_strategy or _get_str_env("EMAIL_VERIFY_SMTP_STRATEGY", "cloud_safe_non25")
 
     if smtp_ports is None:
         if smtp_strategy == "cloud_safe":
             smtp_ports = [25, 587, 465]
+        elif smtp_strategy == "cloud_safe_non25":
+            smtp_ports = [587, 465]
         elif smtp_strategy == "dns_only":
             smtp_ports = []
         else:
             smtp_ports = [25]
+
+    if no_port_25 and smtp_ports:
+        smtp_ports = [port for port in smtp_ports if port != 25]
 
     syntax_valid, normalized, domain = validate_syntax(email)
     local_part = ""

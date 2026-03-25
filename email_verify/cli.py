@@ -63,10 +63,12 @@ def main() -> int:
     parser.add_argument(
         "--smtp-strategy",
         type=str,
-        choices=["strict", "cloud_safe", "dns_only"],
+        choices=["strict", "cloud_safe", "cloud_safe_non25", "dns_only"],
         help="SMTP probe strategy",
     )
     parser.add_argument("--smtp-ports", type=str, help="Comma separated SMTP ports")
+    parser.add_argument("--smtp-timeout-seconds", type=float, help="SMTP timeout in seconds")
+    parser.add_argument("--no-port-25", action="store_true", help="Remove port 25 from SMTP probe")
 
     args = parser.parse_args()
 
@@ -85,7 +87,7 @@ def main() -> int:
         parser.print_help()
         return 2
 
-    smtp_strategy = args.smtp_strategy or config.get("smtp_strategy", "strict")
+    smtp_strategy = args.smtp_strategy or config.get("smtp_strategy", "cloud_safe_non25")
     smtp_ports = _parse_ports(args.smtp_ports)
     if smtp_ports is None:
         config_ports = config.get("smtp_ports")
@@ -95,7 +97,13 @@ def main() -> int:
     dns_timeout = config.get("dns_timeout")
     dns_retries = config.get("dns_retries")
     smtp_timeout = config.get("smtp_timeout")
+    if smtp_timeout is None:
+        smtp_timeout = config.get("smtp_timeout_seconds")
+    if args.smtp_timeout_seconds is not None:
+        smtp_timeout = args.smtp_timeout_seconds
     smtp_retries = config.get("smtp_retries")
+
+    no_port_25 = args.no_port_25 or bool(config.get("no_port_25"))
 
     results = [
         verify_email(
@@ -106,6 +114,7 @@ def main() -> int:
             dns_retries=dns_retries,
             smtp_timeout=smtp_timeout,
             smtp_retries=smtp_retries,
+            no_port_25=no_port_25,
         ).to_dict()
         for email in emails
     ]
