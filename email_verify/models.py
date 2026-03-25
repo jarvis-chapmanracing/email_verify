@@ -14,6 +14,9 @@ class EmailCheckResult:
     smtp_reachable: bool
     catch_all: Optional[bool]
     smtp_attempts: list[dict]
+    smtp_timeout_seconds: float
+    smtp_total_timeout_seconds: float
+    smtp_timed_out: bool
     role_account: bool
     disposable_domain: bool
     risk_score: int
@@ -31,6 +34,9 @@ class EmailCheckResult:
             "smtp_reachable": self.smtp_reachable,
             "catch_all": self.catch_all,
             "smtp_attempts": self.smtp_attempts,
+            "smtp_timeout_seconds": self.smtp_timeout_seconds,
+            "smtp_total_timeout_seconds": self.smtp_total_timeout_seconds,
+            "smtp_timed_out": self.smtp_timed_out,
             "role_account": self.role_account,
             "disposable_domain": self.disposable_domain,
             "risk_score": self.risk_score,

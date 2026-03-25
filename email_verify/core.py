@@ -49,11 +49,13 @@ def verify_email(
     dns_timeout: float | None = None,
     dns_retries: int | None = None,
     smtp_timeout: float | None = None,
+    smtp_total_timeout: float | None = None,
     smtp_retries: int | None = None,
     no_port_25: bool = False,
 ) -> EmailCheckResult:
     dns_timeout = dns_timeout or _get_float_env("EMAIL_VERIFY_DNS_TIMEOUT", 4.0)
     smtp_timeout = smtp_timeout or _get_float_env("EMAIL_VERIFY_SMTP_TIMEOUT", 3.0)
+    smtp_total_timeout = smtp_total_timeout or _get_float_env("EMAIL_VERIFY_SMTP_TOTAL_TIMEOUT", 10.0)
     smtp_retries = smtp_retries if smtp_retries is not None else _get_int_env("EMAIL_VERIFY_SMTP_RETRIES", 0)
     dns_retries = dns_retries if dns_retries is not None else _get_int_env("EMAIL_VERIFY_DNS_RETRIES", 0)
     smtp_strategy = smtp_strategy or _get_str_env("EMAIL_VERIFY_SMTP_STRATEGY", "cloud_safe_non25")
@@ -67,6 +69,9 @@ def verify_email(
             smtp_ports = []
         else:
             smtp_ports = [25]
+
+    if smtp_strategy != "strict":
+        no_port_25 = True
 
     if no_port_25 and smtp_ports:
         smtp_ports = [port for port in smtp_ports if port != 25]
@@ -90,6 +95,9 @@ def verify_email(
             smtp_reachable=False,
             catch_all=None,
             smtp_attempts=[],
+            smtp_timeout_seconds=smtp_timeout,
+            smtp_total_timeout_seconds=smtp_total_timeout,
+            smtp_timed_out=False,
             role_account=role_account,
             disposable_domain=disposable_domain,
             smtp_inconclusive=False,
@@ -105,11 +113,15 @@ def verify_email(
     smtp_attempts: list[dict] = []
     smtp_inconclusive = False
 
+    smtp_timed_out = False
+    smtp_timeout_seconds = smtp_timeout
+    smtp_total_timeout_seconds = smtp_total_timeout
     if mx_found and smtp_ports:
-        smtp_reachable, catch_all, smtp_attempts = probe_smtp(
+        smtp_reachable, catch_all, smtp_attempts, smtp_timed_out = probe_smtp(
             mx_hosts,
             domain,
             timeout=smtp_timeout,
+            total_timeout=smtp_total_timeout,
             retries=smtp_retries,
             ports=smtp_ports,
         )
@@ -125,6 +137,8 @@ def verify_email(
             smtp_inconclusive = True
     elif mx_found and not smtp_ports:
         smtp_inconclusive = True
+    elif mx_found and not smtp_ports:
+        smtp_inconclusive = True
 
     return classify_result(
         email=email,
@@ -135,6 +149,9 @@ def verify_email(
         smtp_reachable=smtp_reachable,
         catch_all=catch_all,
         smtp_attempts=smtp_attempts,
+        smtp_timeout_seconds=smtp_timeout_seconds,
+        smtp_total_timeout_seconds=smtp_total_timeout_seconds,
+        smtp_timed_out=smtp_timed_out,
         role_account=role_account,
         disposable_domain=disposable_domain,
         smtp_inconclusive=smtp_inconclusive,

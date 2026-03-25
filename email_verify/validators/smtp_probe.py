@@ -5,6 +5,7 @@ import random
 import smtplib
 import socket
 import string
+import time
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -19,18 +20,24 @@ def probe_smtp(
     mx_hosts: list[str],
     domain: str,
     timeout: float,
+    total_timeout: float,
     retries: int,
     ports: list[int],
-) -> tuple[bool, Optional[bool], list[dict]]:
+) -> tuple[bool, Optional[bool], list[dict], bool]:
     if not mx_hosts:
-        return False, None, []
+        return False, None, [], False
 
     attempts_log: list[dict] = []
     smtp_reachable = False
     catch_all: Optional[bool] = None
+    start_time = time.monotonic()
+    smtp_timed_out = False
 
     for host in mx_hosts:
         for port in ports:
+            if time.monotonic() - start_time >= total_timeout:
+                smtp_timed_out = True
+                return smtp_reachable, catch_all, attempts_log, smtp_timed_out
             attempts = 0
             while attempts <= retries:
                 attempts += 1
@@ -69,9 +76,14 @@ def probe_smtp(
                                 catch_all = None
                                 attempt_entry["rcpt_status"] = "error"
                         attempts_log.append(attempt_entry)
-                        return smtp_reachable, catch_all, attempts_log
-                except (socket.timeout, OSError, smtplib.SMTPException) as exc:
+                        return smtp_reachable, catch_all, attempts_log, smtp_timed_out
+                except socket.timeout as exc:
+                    attempts_log.append({"host": host, "port": port, "mode": mode, "status": "timeout"})
+                    logger.debug("SMTP connection timed out for %s:%s: %s", host, port, exc)
+                    continue
+                except (OSError, smtplib.SMTPException) as exc:
                     attempts_log.append({"host": host, "port": port, "mode": mode, "status": f"fail: {exc}"})
                     logger.debug("SMTP connection failed for %s:%s: %s", host, port, exc)
                     continue
-    return smtp_reachable, catch_all, attempts_log
+
+    return smtp_reachable, catch_all, attempts_log, smtp_timed_out
