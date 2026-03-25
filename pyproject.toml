@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "email_verify"
+version = "0.1.0"
+description = "Email verification CLI with risk based classification"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Andrew Chapman"}]
+dependencies = [
+  "dnspython>=2.4.2",
+  "email-validator>=2.1.0",
+]
+
+[project.scripts]
+email_verify = "email_verify.cli:main"
+
+[tool.setuptools]
+packages = ["email_verify", "email_verify.validators"]
